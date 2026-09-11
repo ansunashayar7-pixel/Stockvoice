@@ -32,27 +32,21 @@ jobs:
 
       - name: Install Android SDK
         run: |
+          yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Find Gradle project
-        run: |
-          GRADLEW=$(find stockvoice -name gradlew -type f | head -1)
-          if [ -z "$GRADLEW" ]; then
-            echo "gradlew not found"
-            find stockvoice -maxdepth 4 -type f | head -100
-            exit 1
-          fi
-          echo "GRADLEW=$GRADLEW" >> "$GITHUB_ENV"
-          echo "PROJECT_DIR=$(dirname "$GRADLEW")" >> "$GITHUB_ENV"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
 
       - name: Build APK
+        working-directory: stockvoice
         run: |
-          chmod +x "$GRADLEW"
-          cd "$PROJECT_DIR"
-          ./gradlew --no-daemon :app:assembleDebug
+          gradle --no-daemon :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: StockVoice-debug-APK
-          path: "**/app/build/outputs/apk/debug/*.apk"
+          path: "stockvoice/app/build/outputs/apk/debug/*.apk"
