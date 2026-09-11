@@ -1,47 +1,22 @@
-name: Build StockVoice APK
-
-on:
-  workflow_dispatch:
-  push:
-    paths:
-      - "stockvoice_upload.zip"
-      - ".github/workflows/build-apk.yml"
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Extract StockVoice source
+      - name: Find Gradle project
         run: |
-          rm -rf stockvoice
-          mkdir stockvoice
-          unzip -q stockvoice_upload.zip -d stockvoice
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Setup Android
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK
-        run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          GRADLEW=$(find stockvoice -name gradlew -type f | head -1)
+          if [ -z "$GRADLEW" ]; then
+            echo "gradlew not found"
+            find stockvoice -maxdepth 3 -type f | head -100
+            exit 1
+          fi
+          echo "GRADLEW=$GRADLEW" >> $GITHUB_ENV
+          echo "PROJECT_DIR=$(dirname "$GRADLEW")" >> $GITHUB_ENV
 
       - name: Build APK
-        working-directory: stockvoice
         run: |
-          chmod +x gradlew
+          chmod +x "$GRADLEW"
+          cd "$PROJECT_DIR"
           ./gradlew --no-daemon :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: StockVoice-debug-APK
-          path: stockvoice/app/build/outputs/apk/debug/*.apk
+          path: "**/app/build/outputs/apk/debug/*.apk"
